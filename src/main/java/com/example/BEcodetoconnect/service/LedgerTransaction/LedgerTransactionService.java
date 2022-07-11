@@ -1,7 +1,8 @@
-package com.example.BEcodetoconnect.service;
+package com.example.BEcodetoconnect.service.LedgerTransaction;
 
 import com.example.BEcodetoconnect.helper.FileHelper;
 import com.example.BEcodetoconnect.model.LedgerTransaction;
+import com.example.BEcodetoconnect.model.SwiftEntry;
 import com.example.BEcodetoconnect.repository.LedgerTransactionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,36 +22,31 @@ public class LedgerTransactionService {
     @Autowired
     LedgerTransactionRepository ledgerTransactionRepository;
 
-    public List<LedgerTransaction> parseToPOJO (MultipartFile file) {
-        List<LedgerTransaction> ledgerTransactions = null;
+    public List<Object> parseToPOJO (MultipartFile file) {
+        List<Object> records = null;
         try {
-            if (file.getContentType() == CSV_TYPE) {
-                ledgerTransactions = FileHelper.csvToLedgerTransactions(file.getInputStream());
-            } else if (file.getContentType() == XML_TYPE) {
-                ledgerTransactions = FileHelper.xmlToLedgerTransactions(file.getInputStream());
+            if (CSV_TYPE.equals(file.getContentType())) {
+                records = FileHelper.csvToLedgerTransactions(file.getInputStream());
+            } else if (XML_TYPE.equals(file.getContentType())) {
+                records = FileHelper.xmlToLedgerTransactions(file.getInputStream());
             }
-            return ledgerTransactions;
+            return records;
         } catch (IOException e) {
             throw new RuntimeException(e.getMessage());
         }
     }
 
     public void save(MultipartFile file) {
-        try {
-            List<LedgerTransaction> ledgerTransactions = FileHelper.xmlToLedgerTransactions(file.getInputStream());
-            ledgerTransactionRepository.saveAll(ledgerTransactions);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to store csv data: " + e.getMessage());
-        }
+
     }
 
     public void save2(MultipartFile file) {
-        try {
-            List<LedgerTransaction> ledgerTransactions = FileHelper.csvToLedgerTransactions(file.getInputStream());
-            ledgerTransactionRepository.saveAll(ledgerTransactions);
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to store csv data: " + e.getMessage());
-        }
+//        try {
+//            List<LedgerTransaction> ledgerTransactions = FileHelper.csvToLedgerTransactions(file.getInputStream());
+//            ledgerTransactionRepository.saveAll(ledgerTransactions);
+//        } catch (IOException e) {
+//            throw new RuntimeException("Failed to store csv data: " + e.getMessage());
+//        }
     }
 
     public void test(MultipartFile file) {

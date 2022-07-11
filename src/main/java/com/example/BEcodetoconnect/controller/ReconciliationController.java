@@ -2,8 +2,9 @@ package com.example.BEcodetoconnect.controller;
 
 import com.example.BEcodetoconnect.helper.FileHelper;
 import com.example.BEcodetoconnect.model.LedgerTransaction;
-import com.example.BEcodetoconnect.service.LedgerTransactionService;
-import com.example.BEcodetoconnect.service.ReconciliationService;
+import com.example.BEcodetoconnect.model.SwiftEntry;
+import com.example.BEcodetoconnect.service.LedgerTransaction.LedgerTransactionService;
+import com.example.BEcodetoconnect.service.Reconciliation.ReconciliationService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -12,7 +13,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -30,14 +33,26 @@ public class ReconciliationController {
         String message = "";
         if (FileHelper.hasCSVFormat(ledgerFile) && FileHelper.hasXMLFormat(swiftFile)) {
             try {
-                List<LedgerTransaction> ledgerTransactions = ledgerTransactionService.parseToPOJO(ledgerFile);
-                List<LedgerTransaction> swiftTransactions = ledgerTransactionService.parseToPOJO(swiftFile);
-                reconciliationService.reconcileTransactions(ledgerTransactions, swiftTransactions);
-                message = "Uploaded the file successfully: " + ledgerFile.getOriginalFilename();
-                return ResponseEntity.status(HttpStatus.OK).body(message);
+                List<LedgerTransaction> ledgerTransactions = ledgerTransactionService.parseToPOJO(ledgerFile).stream()
+                        .map(element -> (LedgerTransaction) element)
+                        .collect(Collectors.toList());
+                List<SwiftEntry> swiftTransactions = ledgerTransactionService.parseToPOJO(swiftFile).stream()
+                        .map(element -> (SwiftEntry) element)
+                        .collect(Collectors.toList());
+                HashMap<String, List<LedgerTransaction>> reconciledResults = reconciliationService.reconcileTransactions(ledgerTransactions, swiftTransactions);
+
+                List<LedgerTransaction> reconciledTransactions = reconciledResults.get("reconciledTransactions");
+                Integer counter = 0;
+                for (LedgerTransaction ledgerTransaction : reconciledTransactions) {
+                    counter++;
+                    log.info("{}", ledgerTransaction);
+                }
+                log.info("{}", counter);
+
+                return ResponseEntity.status(HttpStatus.OK).body("Reconciliation successful!");
             } catch (Exception e) {
-                message = "Could not upload the file: " + ledgerFile.getOriginalFilename();
-                return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(message + e.getMessage());
+                e.printStackTrace();
+                return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(e.getMessage());
             }
         }
         message = "Please upload correct file formats (CSV, XML)!";

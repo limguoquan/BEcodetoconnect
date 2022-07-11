@@ -1,6 +1,7 @@
 package com.example.BEcodetoconnect.helper;
 
 import com.example.BEcodetoconnect.model.LedgerTransaction;
+import com.example.BEcodetoconnect.model.SwiftEntry;
 import com.fasterxml.jackson.dataformat.xml.XmlMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.csv.CSVFormat;
@@ -44,11 +45,11 @@ public class FileHelper {
         return true;
     }
 
-    public static List<LedgerTransaction> csvToLedgerTransactions(InputStream is) {
+    public static List<Object> csvToLedgerTransactions(InputStream is) {
         try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(new BOMInputStream(is), "UTF-8"));
              CSVParser csvParser = new CSVParser(fileReader,
                      CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());) {
-            List<LedgerTransaction> ledgerTransactions = new ArrayList<LedgerTransaction>();
+            List<Object> ledgerTransactions = new ArrayList<>();
             Iterable<CSVRecord> csvRecords = csvParser.getRecords();
             DateFormat dateFormatter = new SimpleDateFormat("dd-MMM-yy");
             dateFormatter.setTimeZone(TimeZone.getTimeZone("UTC"));
@@ -65,13 +66,15 @@ public class FileHelper {
             }
             return ledgerTransactions;
         } catch (IOException e) {
-            throw new RuntimeException("Failed to parse CSV file: " + e.getMessage());
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
         } catch (ParseException e) {
+            e.printStackTrace();
             throw new RuntimeException(e);
         }
     }
 
-    public static List<LedgerTransaction> xmlToLedgerTransactions(InputStream is) {
+    public static List<Object> xmlToLedgerTransactions(InputStream is) {
         DocumentBuilderFactory documentBuilderFactory = DocumentBuilderFactory.newInstance();
         try {
             DocumentBuilder documentBuilder = documentBuilderFactory.newDocumentBuilder();
@@ -82,10 +85,8 @@ public class FileHelper {
 
             String account = ((NodeList) xPath.compile("//Acct/Id/Othr/Id").evaluate(document, XPathConstants.NODESET)).item(0).getTextContent();
             NodeList nodeList = (NodeList) xPath.compile("//Ntry").evaluate(document, XPathConstants.NODESET);
-
-            List<LedgerTransaction> ledgerTransactions = new ArrayList<LedgerTransaction>();
-
             DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssX");
+            List<Object> swiftEntries = new ArrayList<>();
             for (int i = 0; i < nodeList.getLength(); i++) {
                 Node node = nodeList.item(i);
                 if (node.getNodeType() == Node.ELEMENT_NODE) {
@@ -101,18 +102,24 @@ public class FileHelper {
                             creditDebit = "Debit";
                             break;
                     }
-                    int numberOfTransactions = 1;
-                    Node numberOfTransactionsNode = element.getElementsByTagName("NbOfTxs").item(0);
-                    if (numberOfTransactionsNode != null) {
-                        numberOfTransactions = Integer.parseInt(numberOfTransactionsNode.getTextContent());
-                    }
-                    Long amount = Long.parseLong(element.getElementsByTagName("Amt").item(0).getTextContent()) * numberOfTransactions;
 
                     String transactionReference = "";
-                    Node transactionReferenceNode = element.getElementsByTagName("EndToEndId").item(0);
-                    if (transactionReferenceNode != null) {
-                        transactionReference = transactionReferenceNode.getTextContent();
+                    String uetr = "";
+                    String pmtInfId = "";
+                    int numberOfTransactions = 1;
+                    Long amount;
+                    Long ttlAmt = 0L;
+
+                    Node btchNode = element.getElementsByTagName("Btch").item(0);
+                    if (btchNode != null) {
+                        pmtInfId = element.getElementsByTagName("PmtInfId").item(0).getTextContent();
+                        numberOfTransactions = Integer.parseInt(element.getElementsByTagName("NbOfTxs").item(0).getTextContent());
+                        ttlAmt = Long.parseLong(element.getElementsByTagName("TtlAmt").item(0).getTextContent());
+                    } else {
+                        transactionReference = element.getElementsByTagName("EndToEndId").item(0).getTextContent();
+                        uetr = element.getElementsByTagName("UETR").item(0).getTextContent();
                     }
+                    amount = Long.parseLong(element.getElementsByTagName("Amt").item(0).getTextContent());
 
                     LedgerTransaction ledgerTransaction = new LedgerTransaction(
                             account,
@@ -122,10 +129,19 @@ public class FileHelper {
                             amount,
                             transactionReference
                     );
-                    ledgerTransactions.add(ledgerTransaction);
+
+                    SwiftEntry swiftEntry = new SwiftEntry(
+                            ledgerTransaction,
+                            uetr,
+                            pmtInfId,
+                            numberOfTransactions,
+                            ttlAmt
+                    );
+
+                    swiftEntries.add(swiftEntry);
                 }
             }
-            return ledgerTransactions;
+            return swiftEntries;
         } catch (ParserConfigurationException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
