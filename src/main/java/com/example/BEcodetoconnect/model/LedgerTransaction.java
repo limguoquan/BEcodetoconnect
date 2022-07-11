@@ -12,7 +12,7 @@ import java.util.Date;
 public class LedgerTransaction {
 
     private String account;
-    private String valueDate;
+    private Date valueDate;
     private String currency;
     private String creditDebit;
     private Long amount;

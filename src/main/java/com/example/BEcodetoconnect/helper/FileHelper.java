@@ -22,10 +22,7 @@ import java.io.*;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 
 @Slf4j
 public class FileHelper {
@@ -54,10 +51,11 @@ public class FileHelper {
             List<LedgerTransaction> ledgerTransactions = new ArrayList<LedgerTransaction>();
             Iterable<CSVRecord> csvRecords = csvParser.getRecords();
             DateFormat dateFormatter = new SimpleDateFormat("dd-MMM-yy");
+            dateFormatter.setTimeZone(TimeZone.getTimeZone("UTC"));
             for (CSVRecord csvRecord : csvRecords) {
                 LedgerTransaction ledgerTransaction = new LedgerTransaction(
                         csvRecord.get("Account"),
-                        dateFormatter.parse(csvRecord.get("ValueDate")).toString(),
+                        dateFormatter.parse(csvRecord.get("ValueDate")),
                         csvRecord.get("Currency"),
                         csvRecord.get("CreditDebit"),
                         Long.parseLong(csvRecord.get("Amount")),
@@ -103,7 +101,13 @@ public class FileHelper {
                             creditDebit = "Debit";
                             break;
                     }
-                    Long amount = Long.parseLong(element.getElementsByTagName("Amt").item(0).getTextContent());
+                    int numberOfTransactions = 1;
+                    Node numberOfTransactionsNode = element.getElementsByTagName("NbOfTxs").item(0);
+                    if (numberOfTransactionsNode != null) {
+                        numberOfTransactions = Integer.parseInt(numberOfTransactionsNode.getTextContent());
+                    }
+                    Long amount = Long.parseLong(element.getElementsByTagName("Amt").item(0).getTextContent()) * numberOfTransactions;
+
                     String transactionReference = "";
                     Node transactionReferenceNode = element.getElementsByTagName("EndToEndId").item(0);
                     if (transactionReferenceNode != null) {
@@ -112,7 +116,7 @@ public class FileHelper {
 
                     LedgerTransaction ledgerTransaction = new LedgerTransaction(
                             account,
-                            valueDate.toString(),
+                            valueDate,
                             currency,
                             creditDebit,
                             amount,

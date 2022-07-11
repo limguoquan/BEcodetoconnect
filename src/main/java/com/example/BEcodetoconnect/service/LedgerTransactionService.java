@@ -16,8 +16,24 @@ import java.util.List;
 @Service
 @Slf4j
 public class LedgerTransactionService {
+    public static String CSV_TYPE = "text/csv";
+    public static String XML_TYPE = "application/xml";
     @Autowired
     LedgerTransactionRepository ledgerTransactionRepository;
+
+    public List<LedgerTransaction> parseToPOJO (MultipartFile file) {
+        List<LedgerTransaction> ledgerTransactions = null;
+        try {
+            if (file.getContentType() == CSV_TYPE) {
+                ledgerTransactions = FileHelper.csvToLedgerTransactions(file.getInputStream());
+            } else if (file.getContentType() == XML_TYPE) {
+                ledgerTransactions = FileHelper.xmlToLedgerTransactions(file.getInputStream());
+            }
+            return ledgerTransactions;
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
 
     public void save(MultipartFile file) {
         try {

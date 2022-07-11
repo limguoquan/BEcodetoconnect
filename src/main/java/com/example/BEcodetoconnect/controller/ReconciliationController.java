@@ -3,6 +3,7 @@ package com.example.BEcodetoconnect.controller;
 import com.example.BEcodetoconnect.helper.FileHelper;
 import com.example.BEcodetoconnect.model.LedgerTransaction;
 import com.example.BEcodetoconnect.service.LedgerTransactionService;
+import com.example.BEcodetoconnect.service.ReconciliationService;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,18 +18,21 @@ import java.util.List;
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/rec")
-public class RecController {
+public class ReconciliationController {
     @Autowired
     LedgerTransactionService ledgerTransactionService;
+    @Autowired
+    ReconciliationService reconciliationService;
 
-    @PostMapping("/upload")
-    public ResponseEntity<String> uploadFiles(@RequestParam("ledgerFile") MultipartFile ledgerFile,
+    @PostMapping("/reconcile")
+    public ResponseEntity<String> reconcile(@RequestParam("ledgerFile") MultipartFile ledgerFile,
                                               @RequestParam("swiftFile") MultipartFile swiftFile) {
         String message = "";
         if (FileHelper.hasCSVFormat(ledgerFile) && FileHelper.hasXMLFormat(swiftFile)) {
             try {
-                ledgerTransactionService.save(swiftFile);
-                ledgerTransactionService.save2(ledgerFile);
+                List<LedgerTransaction> ledgerTransactions = ledgerTransactionService.parseToPOJO(ledgerFile);
+                List<LedgerTransaction> swiftTransactions = ledgerTransactionService.parseToPOJO(swiftFile);
+                reconciliationService.reconcileTransactions(ledgerTransactions, swiftTransactions);
                 message = "Uploaded the file successfully: " + ledgerFile.getOriginalFilename();
                 return ResponseEntity.status(HttpStatus.OK).body(message);
             } catch (Exception e) {
