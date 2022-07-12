@@ -47,8 +47,10 @@ public class FileHelper {
 
     public static List<Object> csvToLedgerTransactions(InputStream is) {
         try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(new BOMInputStream(is), "UTF-8"));
-             CSVParser csvParser = new CSVParser(fileReader,
-                     CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim());) {
+             CSVParser csvParser = new CSVParser(fileReader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim())) {
+
+
+
             List<Object> ledgerTransactions = new ArrayList<>();
             Iterable<CSVRecord> csvRecords = csvParser.getRecords();
             DateFormat dateFormatter = new SimpleDateFormat("dd-MMM-yy");
@@ -61,7 +63,7 @@ public class FileHelper {
                         csvRecord.get("CreditDebit"),
                         Long.parseLong(csvRecord.get("Amount")),
                         csvRecord.get("TransactionReference")
-                );
+                    );
                 ledgerTransactions.add(ledgerTransaction);
             }
             return ledgerTransactions;
@@ -110,16 +112,17 @@ public class FileHelper {
                     Long amount;
                     Long ttlAmt = 0L;
 
+                    amount = Long.parseLong(element.getElementsByTagName("Amt").item(0).getTextContent());
+                    Node refsNode = element.getElementsByTagName("Refs").item(0);
                     Node btchNode = element.getElementsByTagName("Btch").item(0);
                     if (btchNode != null) {
                         pmtInfId = element.getElementsByTagName("PmtInfId").item(0).getTextContent();
                         numberOfTransactions = Integer.parseInt(element.getElementsByTagName("NbOfTxs").item(0).getTextContent());
                         ttlAmt = Long.parseLong(element.getElementsByTagName("TtlAmt").item(0).getTextContent());
-                    } else {
+                    } else if (refsNode != null) {
                         transactionReference = element.getElementsByTagName("EndToEndId").item(0).getTextContent();
                         uetr = element.getElementsByTagName("UETR").item(0).getTextContent();
                     }
-                    amount = Long.parseLong(element.getElementsByTagName("Amt").item(0).getTextContent());
 
                     LedgerTransaction ledgerTransaction = new LedgerTransaction(
                             account,

@@ -1,26 +1,18 @@
-package com.example.BEcodetoconnect.service.LedgerTransaction;
+package com.example.BEcodetoconnect.service;
 
 import com.example.BEcodetoconnect.helper.FileHelper;
-import com.example.BEcodetoconnect.model.LedgerTransaction;
-import com.example.BEcodetoconnect.model.SwiftEntry;
-import com.example.BEcodetoconnect.repository.LedgerTransactionRepository;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.List;
 
 @Service
 @Slf4j
-public class LedgerTransactionService {
+public class FileService {
     public static String CSV_TYPE = "text/csv";
     public static String XML_TYPE = "application/xml";
-    @Autowired
-    LedgerTransactionRepository ledgerTransactionRepository;
 
     public List<Object> parseToPOJO (MultipartFile file) {
         List<Object> records = null;
@@ -37,10 +29,6 @@ public class LedgerTransactionService {
     }
 
     public void save(MultipartFile file) {
-
-    }
-
-    public void save2(MultipartFile file) {
 //        try {
 //            List<LedgerTransaction> ledgerTransactions = FileHelper.csvToLedgerTransactions(file.getInputStream());
 //            ledgerTransactionRepository.saveAll(ledgerTransactions);
@@ -49,15 +37,4 @@ public class LedgerTransactionService {
 //        }
     }
 
-    public void test(MultipartFile file) {
-        try {
-            FileHelper.xmlToLedgerTransactions(file.getInputStream());
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public List<LedgerTransaction> getAllTransactionsByTransactionReference(String transactionReference) {
-        return ledgerTransactionRepository.findByTransactionReference(transactionReference);
-    }
 }
