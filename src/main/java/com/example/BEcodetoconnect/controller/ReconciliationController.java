@@ -36,24 +36,24 @@ public class ReconciliationController {
             try {
                 List<LedgerTransaction> ledgerTransactions = fileService.CSVparseToPOJO(ledgerFile);
                 SwiftMessage swiftMessage = fileService.XMLparseToPOJO(swiftFile);
-                reconciliationService.save(swiftMessage);
-//                HashMap<String, List<LedgerTransaction>> reconciledResults = reconciliationService.reconcileTransactions(ledgerTransactions, swiftMessage);
-//
-//                List<LedgerTransaction> reconciledTransactions = reconciledResults.get("reconciledTransactions");
-//                Integer counter = 0;
-//                for (LedgerTransaction ledgerTransaction : reconciledTransactions) {
-//                    counter++;
-//                    log.info("{}", ledgerTransaction);
-//                }
-//                log.info("reconciled {}", counter);
-//
-//                List<LedgerTransaction> unreconciledTransactions = reconciledResults.get("unreconciledTransactions");
-//                counter = 0;
-//                for (LedgerTransaction ledgerTransaction : unreconciledTransactions) {
-//                    counter++;
-//                    log.info("{}", ledgerTransaction);
-//                }
-//                log.info("unreconciled {}", counter);
+//                reconciliationService.save(swiftMessage);
+                HashMap<String, List<LedgerTransaction>> reconciledResults = reconciliationService.reconcileTransactions(ledgerTransactions, swiftMessage);
+
+                List<LedgerTransaction> reconciledTransactions = reconciledResults.get("reconciledTransactions");
+                Integer counter = 0;
+                for (LedgerTransaction ledgerTransaction : reconciledTransactions) {
+                    counter++;
+                    log.info("{}", ledgerTransaction);
+                }
+                log.info("reconciled {}", counter);
+
+                List<LedgerTransaction> unreconciledTransactions = reconciledResults.get("unreconciledTransactions");
+                counter = 0;
+                for (LedgerTransaction ledgerTransaction : unreconciledTransactions) {
+                    counter++;
+                    log.info("{}", ledgerTransaction);
+                }
+                log.info("unreconciled {}", counter);
 
                 return ResponseEntity.status(HttpStatus.OK).body("Reconciliation successful!");
             } catch (Exception e) {

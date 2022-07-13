@@ -189,9 +189,6 @@ public class FileService {
                     String cdtDbtInd = xmlFieldRetriever.getXMLField_2(node, "CdtDbtInd", nodeList);
                     String cd = xmlFieldRetriever.getXMLField_2(node, "Cd", nodeList);
                     String bookgDt = xmlFieldRetriever.getXMLField_2(node, "DtTm", nodeList);
-
-//                    String valDt = xmlFieldRetriever.getXMLField_2(node, "Dt", nodeList);
-
                     String endToEndId = xmlFieldRetriever.getXMLField_2(node, "EndToEndId", nodeList);
 
                     String uetr = xmlFieldRetriever.getXMLField_2(node, "UETR", nodeList);
@@ -200,11 +197,14 @@ public class FileService {
                     String cdtDbtIndTrans = xmlFieldRetriever.getXMLField_2(node, "CdtDbtInd", nodeList);
 
                     String msgId = xmlFieldRetriever.getXMLField_2(node, "MsgId", nodeList);
-
                     String pmtInfId = xmlFieldRetriever.getXMLField_2(node, "PmtInfId", nodeList);
                     String nbOfTxs = xmlFieldRetriever.getXMLField_2(node, "NbOfTxs", nodeList);
                     String ttlAmt = xmlFieldRetriever.getXMLField_2(node, "TtlAmt", nodeList);
                     String cdtDbtIndBtch = xmlFieldRetriever.getXMLField_2(node, "CdtDbtInd", nodeList);
+
+                    if ("".equals(uetr)) {
+                        amtTrans = "";
+                    }
 
                     // SPECIAL CASE FOR BALANCE DATE
                     DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
@@ -234,16 +234,6 @@ public class FileService {
                             cdtDbtIndBtch
                     );
                 }).collect(Collectors.toList());
-    }
-
-
-    public void save(MultipartFile file) {
-//        try {
-//            List<LedgerTransaction> ledgerTransactions = FileHelper.csvToLedgerTransactions(file.getInputStream());
-//            ledgerTransactionRepository.saveAll(ledgerTransactions);
-//        } catch (IOException e) {
-//            throw new RuntimeException("Failed to store csv data: " + e.getMessage());
-//        }
     }
 
 }
