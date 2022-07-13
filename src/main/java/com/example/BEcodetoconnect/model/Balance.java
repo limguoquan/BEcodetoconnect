@@ -10,7 +10,7 @@ import java.util.Date;
 public class Balance {
     private String cd;
     private String ccy;
-    private Long amt;
+    private Double amt;
     private String cdtDbtInd;
     private Date dt;
 }

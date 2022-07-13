@@ -8,14 +8,10 @@ import java.util.Date;
 
 @Data
 @AllArgsConstructor
-@Document("ledgerTransactions")
-public class LedgerTransaction {
-
+@Document("ledgerBalances")
+public class LedgerBalance {
     private String account;
-    private Date valueDate;
     private String currency;
-    private String creditDebit;
-    private Double amount;
-    private String transactionReference;
-
+    private Double balance;
+    private Date AsOfDateTS;
 }

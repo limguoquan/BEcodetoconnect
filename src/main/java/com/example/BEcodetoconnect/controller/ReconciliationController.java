@@ -1,10 +1,12 @@
 package com.example.BEcodetoconnect.controller;
 
 import com.example.BEcodetoconnect.helper.FileHelper;
+import com.example.BEcodetoconnect.model.BalanceDiscrepancy;
+import com.example.BEcodetoconnect.model.LedgerBalance;
 import com.example.BEcodetoconnect.model.LedgerTransaction;
-import com.example.BEcodetoconnect.model.SwiftEntry;
 import com.example.BEcodetoconnect.model.SwiftMessage;
 import com.example.BEcodetoconnect.service.FileService;
+import com.example.BEcodetoconnect.service.ModelService;
 import com.example.BEcodetoconnect.service.ReconciliationService;
 import lombok.extern.slf4j.Slf4j;
 
@@ -16,7 +18,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -27,33 +28,29 @@ public class ReconciliationController {
     FileService fileService;
     @Autowired
     ReconciliationService reconciliationService;
+    @Autowired
+    ModelService modelService;
 
     @PostMapping("/reconcile")
-    public ResponseEntity<String> reconcile(@RequestParam("ledgerFile") MultipartFile ledgerFile,
+    public ResponseEntity<String> reconcile(@RequestParam("ledgerTransactionFile") MultipartFile ledgerTransactionFile,
+                                              @RequestParam("ledgerBalanceFile") MultipartFile ledgerBalanceFile,
                                               @RequestParam("swiftFile") MultipartFile swiftFile) {
         String message = "";
-        if (FileHelper.hasCSVFormat(ledgerFile) && FileHelper.hasXMLFormat(swiftFile)) {
+        if (FileHelper.hasCSVFormat(ledgerTransactionFile) && FileHelper.hasCSVFormat(ledgerBalanceFile) && FileHelper.hasXMLFormat(swiftFile)) {
             try {
-                List<LedgerTransaction> ledgerTransactions = fileService.CSVparseToPOJO(ledgerFile);
-                SwiftMessage swiftMessage = fileService.XMLparseToPOJO(swiftFile);
-//                reconciliationService.save(swiftMessage);
-                HashMap<String, List<LedgerTransaction>> reconciledResults = reconciliationService.reconcileTransactions(ledgerTransactions, swiftMessage);
+                List<LedgerTransaction> ledgerTransactions = fileService.ledgerCSVparseToPOJO(ledgerTransactionFile);
+                List<LedgerBalance> ledgerBalances = fileService.balanceCSVparseToPOJO(ledgerBalanceFile);
+                SwiftMessage swiftMessage = fileService.swiftXMLparseToPOJO(swiftFile);
 
-                List<LedgerTransaction> reconciledTransactions = reconciledResults.get("reconciledTransactions");
-                Integer counter = 0;
-                for (LedgerTransaction ledgerTransaction : reconciledTransactions) {
-                    counter++;
-                    log.info("{}", ledgerTransaction);
-                }
-                log.info("reconciled {}", counter);
+                // Save SWIFT message
+                modelService.saveSwiftMessage(swiftMessage);
 
-                List<LedgerTransaction> unreconciledTransactions = reconciledResults.get("unreconciledTransactions");
-                counter = 0;
-                for (LedgerTransaction ledgerTransaction : unreconciledTransactions) {
-                    counter++;
-                    log.info("{}", ledgerTransaction);
-                }
-                log.info("unreconciled {}", counter);
+                // Start reconciliation process
+                String integrityCheckMessage = reconciliationService.fullIntegrityCheck(ledgerTransactions, swiftMessage);
+                log.info("{}", integrityCheckMessage);
+
+                String proofingMessage = reconciliationService.proofing(ledgerBalances, swiftMessage);
+                log.info("{}", proofingMessage);
 
                 return ResponseEntity.status(HttpStatus.OK).body("Reconciliation successful!");
             } catch (Exception e) {

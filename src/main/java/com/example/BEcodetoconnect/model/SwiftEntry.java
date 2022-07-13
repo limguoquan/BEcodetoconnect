@@ -13,7 +13,7 @@ import java.util.Stack;
 public class SwiftEntry {
 
     private String ccy;
-    private Long amt;
+    private Double amt;
     private String cdtDbtInd;
     private String cd;
     private Date bookgDt;
@@ -23,14 +23,14 @@ public class SwiftEntry {
     private String endToEndId;
     private String uetr;
     private String ccyTrans;
-    private Long amtTrans;
+    private Double amtTrans;
     private String cdtDbtIndTrans;
 
     // Swift batch details
     private String msgId;
     private String pmtInfId;
     private Integer nbOfTxs;
-    private Long ttlAmt;
+    private Double ttlAmt;
     private String cdtDbtIndBtch;
 
 //    private String endToEndId;

@@ -56,7 +56,7 @@ public class FileService {
     public static String CSV_TYPE = "text/csv";
     public static String XML_TYPE = "application/xml";
 
-    public List<LedgerTransaction> CSVparseToPOJO (MultipartFile file) {
+    public List<LedgerTransaction> ledgerCSVparseToPOJO (MultipartFile file) {
         try {
             return csvToLedgerTransactions(file.getInputStream());
         } catch (IOException e) {
@@ -64,7 +64,15 @@ public class FileService {
         }
     }
 
-    public SwiftMessage XMLparseToPOJO (MultipartFile file) {
+    public List<LedgerBalance> balanceCSVparseToPOJO (MultipartFile file) {
+        try {
+            return csvToLedgerBalance(file.getInputStream());
+        } catch (IOException e) {
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    public SwiftMessage swiftXMLparseToPOJO (MultipartFile file) {
         try {
             return xmlToSwiftMessage(file.getInputStream());
         } catch (IOException e) {
@@ -82,11 +90,32 @@ public class FileService {
             return StreamSupport.stream(csvRecords.spliterator(), false)
                     .map(csvRecord -> new LedgerTransaction(
                             csvRecord.get("Account"),
-                            dateFormatter.parseDate(csvRecord.get("ValueDate"), CSV_TYPE),
+                            dateFormatter.parseDate(csvRecord.get("ValueDate"), "dd-MMM-yy"),
                             csvRecord.get("Currency"),
                             csvRecord.get("CreditDebit"),
-                            Long.parseLong(csvRecord.get("Amount")),
+                            Double.parseDouble(csvRecord.get("Amount")),
                             csvRecord.get("TransactionReference")
+                    )).collect(Collectors.toList());
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException(e.getMessage());
+        }
+    }
+
+    public List<LedgerBalance> csvToLedgerBalance(InputStream is) {
+        try (BufferedReader fileReader = new BufferedReader(new InputStreamReader(new BOMInputStream(is), "UTF-8"));
+             CSVParser csvParser = new CSVParser(fileReader, CSVFormat.DEFAULT.withFirstRecordAsHeader().withIgnoreHeaderCase().withTrim())) {
+
+            // Get CSV Records
+            Iterable<CSVRecord> csvRecords = csvParser.getRecords();
+            // Form and return a list of LedgerTransaction objects
+            return StreamSupport.stream(csvRecords.spliterator(), false)
+                    .map(csvRecord -> new LedgerBalance(
+                            csvRecord.get("Account"),
+                            csvRecord.get("Currency"),
+                            Double.parseDouble(csvRecord.get("Balance")),
+                            dateFormatter.parseDate(csvRecord.get("AsOfDateTS"), "yyyy-MM-dd'T'HH:mm:ssX")
                     )).collect(Collectors.toList());
 
         } catch (IOException e) {
@@ -128,7 +157,7 @@ public class FileService {
                     bicfiFrom,
                     bicfiTo,
                     msgId,
-                    dateFormatter.parseDate(creDtTm, XML_TYPE),
+                    dateFormatter.parseDate(creDtTm, "yyyy-MM-dd'T'HH:mm:ssX"),
                     stmtId,
                     Integer.parseInt(pgNb),
                     lastPgInd,
@@ -137,8 +166,6 @@ public class FileService {
                     ccy,
                     balances,
                     swiftEntries
-//                    balances,
-//                    swiftEntries
             );
         } catch (ParserConfigurationException e) {
             throw new RuntimeException(e);
@@ -159,22 +186,14 @@ public class FileService {
                         String ccy = xmlFieldRetriever.getXMLAttribute_2(node, "Amt", nodeList);
                         String amt = xmlFieldRetriever.getXMLField_2(node, "Amt", nodeList);
                         String cdtDbtInd = xmlFieldRetriever.getXMLField_2(node, "CdtDbtInd", nodeList);
-
-                        // SPECIAL CASE FOR BALANCE DATE
-                        DateFormat dateFormatter = new SimpleDateFormat("yyyy-MM-dd");
-                        Date dt = null;
-                        try {
-                            dt = dateFormatter.parse(xmlFieldRetriever.getXMLField_2(node, "Dt", nodeList).strip());
-                        } catch (ParseException e) {
-                            throw new RuntimeException(e);
-                        }
+                        String dt = xmlFieldRetriever.getXMLField_2(node, "Dt", nodeList).strip();
 
                     return new Balance(
                             cd,
                             ccy,
-                            (long)Double.parseDouble(amt),
+                            Double.parseDouble(amt),
                             cdtDbtInd,
-                            dt
+                            dateFormatter.parseDate(dt, "yyyy-MM-dd")
                         );
                 }).collect(Collectors.toList());
 
@@ -190,6 +209,7 @@ public class FileService {
                     String cd = xmlFieldRetriever.getXMLField_2(node, "Cd", nodeList);
                     String bookgDt = xmlFieldRetriever.getXMLField_2(node, "DtTm", nodeList);
                     String endToEndId = xmlFieldRetriever.getXMLField_2(node, "EndToEndId", nodeList);
+                    String valDt = xmlFieldRetriever.getXMLField_2(node, "Dt", nodeList).strip();
 
                     String uetr = xmlFieldRetriever.getXMLField_2(node, "UETR", nodeList);
                     String ccyTrans = xmlFieldRetriever.getXMLAttribute_2(node, "Amt", nodeList);
@@ -202,35 +222,29 @@ public class FileService {
                     String ttlAmt = xmlFieldRetriever.getXMLField_2(node, "TtlAmt", nodeList);
                     String cdtDbtIndBtch = xmlFieldRetriever.getXMLField_2(node, "CdtDbtInd", nodeList);
 
+                    // EDGE CASE
+                    // Assuming the transactions without TxDtls do not have uetr
+                    // Hence the amount in transaction should be null also
                     if ("".equals(uetr)) {
                         amtTrans = "";
                     }
 
-                    // SPECIAL CASE FOR BALANCE DATE
-                    DateFormat df = new SimpleDateFormat("yyyy-MM-dd");
-                    Date valDt = null;
-                    try {
-                        valDt = df.parse(xmlFieldRetriever.getXMLField_2(node, "Dt", nodeList).strip());
-                    } catch (ParseException e) {
-                        throw new RuntimeException(e);
-                    }
-
                     return new SwiftEntry(
                             ccy,
-                            Long.parseLong(amt),
+                            Double.parseDouble(amt),
                             cdtDbtInd,
                             cd,
-                            dateFormatter.parseDate(bookgDt, XML_TYPE),
-                            valDt,
+                            dateFormatter.parseDate(bookgDt, "yyyy-MM-dd'T'HH:mm:ssX"),
+                            dateFormatter.parseDate(valDt, "yyyy-MM-dd"),
                             endToEndId,
                             uetr,
                             ccyTrans,
-                            "".equals(amtTrans) ?  null : Long.parseLong(amtTrans),
+                            "".equals(amtTrans) ?  null : Double.parseDouble(amtTrans),
                             cdtDbtIndTrans,
                             msgId,
                             pmtInfId,
                             "".equals(nbOfTxs) ? null : Integer.parseInt(nbOfTxs),
-                            "".equals(ttlAmt) ? null : Long.parseLong(ttlAmt),
+                            "".equals(ttlAmt) ? null : Double.parseDouble(ttlAmt),
                             cdtDbtIndBtch
                     );
                 }).collect(Collectors.toList());
