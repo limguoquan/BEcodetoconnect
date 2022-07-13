@@ -3,6 +3,7 @@ package com.example.BEcodetoconnect.controller;
 import com.example.BEcodetoconnect.helper.FileHelper;
 import com.example.BEcodetoconnect.model.LedgerTransaction;
 import com.example.BEcodetoconnect.model.SwiftEntry;
+import com.example.BEcodetoconnect.model.SwiftMessage;
 import com.example.BEcodetoconnect.service.FileService;
 import com.example.BEcodetoconnect.service.ReconciliationService;
 import lombok.extern.slf4j.Slf4j;
@@ -33,29 +34,26 @@ public class ReconciliationController {
         String message = "";
         if (FileHelper.hasCSVFormat(ledgerFile) && FileHelper.hasXMLFormat(swiftFile)) {
             try {
-                List<LedgerTransaction> ledgerTransactions = fileService.parseToPOJO(ledgerFile).stream()
-                        .map(element -> (LedgerTransaction) element)
-                        .collect(Collectors.toList());
-                List<SwiftEntry> swiftTransactions = fileService.parseToPOJO(swiftFile).stream()
-                        .map(element -> (SwiftEntry) element)
-                        .collect(Collectors.toList());
-                HashMap<String, List<LedgerTransaction>> reconciledResults = reconciliationService.reconcileTransactions(ledgerTransactions, swiftTransactions);
-
-                List<LedgerTransaction> reconciledTransactions = reconciledResults.get("reconciledTransactions");
-                Integer counter = 0;
-                for (LedgerTransaction ledgerTransaction : reconciledTransactions) {
-                    counter++;
-                    log.info("{}", ledgerTransaction);
-                }
-                log.info("reconciled {}", counter);
-
-                List<LedgerTransaction> unreconciledTransactions = reconciledResults.get("unreconciledTransactions");
-                counter = 0;
-                for (LedgerTransaction ledgerTransaction : unreconciledTransactions) {
-                    counter++;
-                    log.info("{}", ledgerTransaction);
-                }
-                log.info("unreconciled {}", counter);
+                List<LedgerTransaction> ledgerTransactions = fileService.CSVparseToPOJO(ledgerFile);
+                SwiftMessage swiftMessage = fileService.XMLparseToPOJO(swiftFile);
+                reconciliationService.save(swiftMessage);
+//                HashMap<String, List<LedgerTransaction>> reconciledResults = reconciliationService.reconcileTransactions(ledgerTransactions, swiftMessage);
+//
+//                List<LedgerTransaction> reconciledTransactions = reconciledResults.get("reconciledTransactions");
+//                Integer counter = 0;
+//                for (LedgerTransaction ledgerTransaction : reconciledTransactions) {
+//                    counter++;
+//                    log.info("{}", ledgerTransaction);
+//                }
+//                log.info("reconciled {}", counter);
+//
+//                List<LedgerTransaction> unreconciledTransactions = reconciledResults.get("unreconciledTransactions");
+//                counter = 0;
+//                for (LedgerTransaction ledgerTransaction : unreconciledTransactions) {
+//                    counter++;
+//                    log.info("{}", ledgerTransaction);
+//                }
+//                log.info("unreconciled {}", counter);
 
                 return ResponseEntity.status(HttpStatus.OK).body("Reconciliation successful!");
             } catch (Exception e) {
