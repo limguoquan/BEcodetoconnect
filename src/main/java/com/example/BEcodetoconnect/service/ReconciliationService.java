@@ -3,6 +3,7 @@ package com.example.BEcodetoconnect.service;
 import com.example.BEcodetoconnect.model.LedgerTransaction;
 import com.example.BEcodetoconnect.model.SwiftEntry;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -19,35 +20,46 @@ public class ReconciliationService {
         List<LedgerTransaction> reconciledTransactions = new ArrayList<>();
         List<LedgerTransaction> unreconciledTransactions = new ArrayList<>();
 
-        Map<Long, List<LedgerTransaction>> ledgerAmounts = ledgerTransactions.stream().collect(
-                Collectors.groupingBy(LedgerTransaction::getAmount));
+        Map<Pair<String, Long>, Long> ledgerMapWithRecordCount = ledgerTransactions.stream()
+                .collect(Collectors.groupingBy(p -> Pair.of(p.getTransactionReference(), p.getAmount()), Collectors.counting()));
+
+        Map<Pair<String, Long>, List<LedgerTransaction>> ledgerMapWithLedgerTransaction = ledgerTransactions.stream()
+                .collect(Collectors.groupingBy(p -> Pair.of(p.getTransactionReference(), p.getAmount())));
 
         for (SwiftEntry swiftEntry : swiftTransactions) {
-            // singular amount (1..1 mapping)
-            Long amount = swiftEntry.getLedgerTransaction().getAmount();
-            int numberOfTransactions = swiftEntry.getNbOfTxs();
-            Long totalAmount = swiftEntry.getTtlAmt();
+            String transactionReference = swiftEntry.getEndToEndId();
+            Long amount = swiftEntry.getLedgerTransactions().get(0).getAmount();
+            Integer numberOfTransactionsInSwift = swiftEntry.getNbOfTxs();
 
-            List<LedgerTransaction> matchedLedgerTransactions = ledgerAmounts.getOrDefault(amount, null);
+            Pair<String, Long> key = Pair.of(transactionReference, amount);
+            int numberOfTransactionsInLedger = Math.toIntExact(ledgerMapWithRecordCount.get(key));
 
-            Iterator<LedgerTransaction> itr = matchedLedgerTransactions.iterator();
-            int counter = 0;
-            while (itr.hasNext()) {
-                if (counter >= numberOfTransactions) {
-                    // over
-                    break;
+            if (numberOfTransactionsInSwift <= numberOfTransactionsInLedger) {
+                for (int i=0; i<numberOfTransactionsInSwift; i++) {
+                    reconciledTransactions.add(ledgerMapWithLedgerTransaction.get(key).get(0));
+                    Long curCount = ledgerMapWithRecordCount.get(key);
+                    ledgerMapWithRecordCount.put(key, curCount - 1);
                 }
-                reconciledTransactions.add(itr.next());
-                itr.remove();
-                counter++;
+            } else {
+                for (int i=0; i<numberOfTransactionsInLedger; i++) {
+                    reconciledTransactions.add(ledgerMapWithLedgerTransaction.get(key).get(0));
+                    Long curCount = ledgerMapWithRecordCount.get(key);
+                    ledgerMapWithRecordCount.put(key, curCount - 1);
+                }
+
+                for (int i=0; i<(numberOfTransactionsInSwift-numberOfTransactionsInLedger); i++) {
+                    unreconciledTransactions.add(ledgerMapWithLedgerTransaction.get(key).get(0));
+                }
             }
         }
 
-        for (Map.Entry<Long, List<LedgerTransaction>> entry : ledgerAmounts.entrySet()) {
-            for (LedgerTransaction ledgerTransaction : entry.getValue()) {
-                unreconciledTransactions.add(ledgerTransaction);
+        for (Map.Entry<Pair<String, Long>, Long> entry : ledgerMapWithRecordCount.entrySet()) {
+            if (entry.getValue() > 0) {
+                log.info("{}", entry.getValue());
+                unreconciledTransactions.add(ledgerMapWithLedgerTransaction.get(entry.getKey()).get(0));
             }
         }
+
 
         // consider mock data for edge cases, consider the opposite way (swift > ledger transactions)
         // consider balance reconciliation

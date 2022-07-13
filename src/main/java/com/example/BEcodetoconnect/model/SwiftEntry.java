@@ -5,13 +5,14 @@ import lombok.Data;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.List;
+import java.util.Stack;
 
 @Data
 @AllArgsConstructor
-@Document("swiftEntries")
 public class SwiftEntry {
 
-    private LedgerTransaction ledgerTransaction;
+    private Stack<LedgerTransaction> ledgerTransactions;
+    private String endToEndId;
     private String uetr;
     private String pmtInfId;
     private Integer nbOfTxs;
