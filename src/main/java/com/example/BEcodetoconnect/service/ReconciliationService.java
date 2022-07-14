@@ -57,20 +57,12 @@ public class ReconciliationService {
                 numberOfTransactionsInLedger = Math.toIntExact(ledgerMapWithRecordCount.get(key));
             } else {
                 reconciliationMessage = "There are unreconciled transaction ledgers!";
-                UnreconciledTransaction unreconciledTransaction = new UnreconciledTransaction(
-                        null,
-                        swiftMessage.getBicfiFrom(),
-                        swiftMessage.getBicfiTo(),
-                        swiftMessage.getMsgId(),
-                        swiftMessage.getCreDtTm(),
-                        swiftMessage.getStmtId(),
-                        swiftMessage.getPgNb(),
-                        swiftMessage.getLastPgInd(),
-                        swiftMessage.getLglSeqNb(),
-                        swiftMessage.getAcctId(),
-                        swiftMessage.getCcy(),
-                        swiftEntry
-                );
+                UnreconciledTransaction unreconciledTransaction =
+                        unreconciledTransactionBuilder(
+                                null,
+                                swiftMessage,
+                                swiftEntry
+                        );
                 swiftEntryUnreconciled.put(amount, swiftEntry);
                 modelService.saveUnreconciledTransaction(unreconciledTransaction);
                 continue;
@@ -91,20 +83,12 @@ public class ReconciliationService {
 
                 for (int i=0; i<(numberOfTransactionsInSwift-numberOfTransactionsInLedger); i++) {
                     reconciliationMessage = "There are unreconciled transaction ledgers!";
-                    UnreconciledTransaction unreconciledTransaction = new UnreconciledTransaction(
-                            ledgerMapWithLedgerTransaction.get(key).get(0),
-                            swiftMessage.getBicfiFrom(),
-                            swiftMessage.getBicfiTo(),
-                            swiftMessage.getMsgId(),
-                            swiftMessage.getCreDtTm(),
-                            swiftMessage.getStmtId(),
-                            swiftMessage.getPgNb(),
-                            swiftMessage.getLastPgInd(),
-                            swiftMessage.getLglSeqNb(),
-                            swiftMessage.getAcctId(),
-                            swiftMessage.getCcy(),
-                            swiftEntry
-                    );
+                    UnreconciledTransaction unreconciledTransaction =
+                            unreconciledTransactionBuilder(
+                                    ledgerMapWithLedgerTransaction.get(key).get(0),
+                                    swiftMessage,
+                                    swiftEntry
+                            );
                     swiftEntryUnreconciled.put(amount, swiftEntry);
                     modelService.saveUnreconciledTransaction(unreconciledTransaction);
                 }
@@ -115,20 +99,12 @@ public class ReconciliationService {
             if (entry.getValue() > 0) {
                 reconciliationMessage = "There are unreconciled transaction ledgers!";
                 SwiftEntry swiftEntry = swiftEntryUnreconciled.get(entry.getKey().getSecond());
-                UnreconciledTransaction unreconciledTransaction = new UnreconciledTransaction(
-                        ledgerMapWithLedgerTransaction.get(entry.getKey()).get(0),
-                        swiftMessage.getBicfiFrom(),
-                        swiftMessage.getBicfiTo(),
-                        swiftMessage.getMsgId(),
-                        swiftMessage.getCreDtTm(),
-                        swiftMessage.getStmtId(),
-                        swiftMessage.getPgNb(),
-                        swiftMessage.getLastPgInd(),
-                        swiftMessage.getLglSeqNb(),
-                        swiftMessage.getAcctId(),
-                        swiftMessage.getCcy(),
-                        swiftEntry
-                );
+                UnreconciledTransaction unreconciledTransaction =
+                        unreconciledTransactionBuilder(
+                                ledgerMapWithLedgerTransaction.get(entry.getKey()).get(0),
+                                swiftMessage,
+                                swiftEntry
+                        );
                 modelService.saveUnreconciledTransaction(unreconciledTransaction);
                 unreconciledTransactions.add(ledgerMapWithLedgerTransaction.get(entry.getKey()).get(0));
             }
@@ -152,22 +128,11 @@ public class ReconciliationService {
         Double swiftClosingBalance = swiftMessage.getBalances().get(1).getAmt();
 
         if (!openingBalance.getBalance().equals(swiftOpeningBalance) || !closingBalance.getBalance().equals(swiftClosingBalance)) {
-            modelService.saveBalanceDiscrepancy(new BalanceDiscrepancy(
-                    openingBalance.getAccount(),
-                    openingBalance.getAsOfDateTS(),
-                    swiftMessage.getBicfiFrom(),
-                    swiftMessage.getBicfiTo(),
-                    swiftMessage.getMsgId(),
-                    swiftMessage.getCreDtTm(),
-                    swiftMessage.getStmtId(),
-                    swiftMessage.getPgNb(),
-                    swiftMessage.getLastPgInd(),
-                    swiftMessage.getLglSeqNb(),
-                    swiftMessage.getAcctId(),
-                    swiftMessage.getCcy(),
-                    openingBalance.getBalance(),
+            modelService.saveBalanceDiscrepancy(balanceDiscrepancyBuilder(
+                    openingBalance,
+                    closingBalance,
+                    swiftMessage,
                     swiftOpeningBalance,
-                    closingBalance.getBalance(),
                     swiftClosingBalance
             ));
             return "There are discrepancies!";
@@ -175,6 +140,44 @@ public class ReconciliationService {
             modelService.saveLedgerBalances(ledgerBalances);
         }
         return "There are no discrepancies!";
+    }
+
+    public UnreconciledTransaction unreconciledTransactionBuilder(LedgerTransaction ledgerTransaction, SwiftMessage swiftMessage, SwiftEntry swiftEntry) {
+        return new UnreconciledTransaction(
+                ledgerTransaction,
+                swiftMessage.getBicfiFrom(),
+                swiftMessage.getBicfiTo(),
+                swiftMessage.getMsgId(),
+                swiftMessage.getCreDtTm(),
+                swiftMessage.getStmtId(),
+                swiftMessage.getPgNb(),
+                swiftMessage.getLastPgInd(),
+                swiftMessage.getLglSeqNb(),
+                swiftMessage.getAcctId(),
+                swiftMessage.getCcy(),
+                swiftEntry
+        );
+    }
+
+    public BalanceDiscrepancy balanceDiscrepancyBuilder(LedgerBalance openingBalance, LedgerBalance closingBalance, SwiftMessage swiftMessage, Double swiftOpeningBalance, Double swiftClosingBalance) {
+        return new BalanceDiscrepancy(
+                openingBalance.getAccount(),
+                openingBalance.getAsOfDateTS(),
+                swiftMessage.getBicfiFrom(),
+                swiftMessage.getBicfiTo(),
+                swiftMessage.getMsgId(),
+                swiftMessage.getCreDtTm(),
+                swiftMessage.getStmtId(),
+                swiftMessage.getPgNb(),
+                swiftMessage.getLastPgInd(),
+                swiftMessage.getLglSeqNb(),
+                swiftMessage.getAcctId(),
+                swiftMessage.getCcy(),
+                openingBalance.getBalance(),
+                swiftOpeningBalance,
+                closingBalance.getBalance(),
+                swiftClosingBalance
+        );
     }
 
 }
