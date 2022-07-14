@@ -16,6 +16,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
@@ -32,34 +34,31 @@ public class ReconciliationController {
     ModelService modelService;
 
     @PostMapping("/reconcile")
-    public ResponseEntity<String> reconcile(@RequestParam("ledgerTransactionFile") MultipartFile ledgerTransactionFile,
+    public ResponseEntity<List<String>> reconcile(@RequestParam("ledgerTransactionFile") MultipartFile ledgerTransactionFile,
                                               @RequestParam("ledgerBalanceFile") MultipartFile ledgerBalanceFile,
                                               @RequestParam("swiftFile") MultipartFile swiftFile) {
         String message = "";
-        if (FileHelper.hasCSVFormat(ledgerTransactionFile) && FileHelper.hasCSVFormat(ledgerBalanceFile) && FileHelper.hasXMLFormat(swiftFile)) {
-            try {
-                List<LedgerTransaction> ledgerTransactions = fileService.ledgerCSVparseToPOJO(ledgerTransactionFile);
-                List<LedgerBalance> ledgerBalances = fileService.balanceCSVparseToPOJO(ledgerBalanceFile);
-                SwiftMessage swiftMessage = fileService.swiftXMLparseToPOJO(swiftFile);
+        try {
+            List<LedgerTransaction> ledgerTransactions = fileService.ledgerCSVparseToPOJO(ledgerTransactionFile);
+            List<LedgerBalance> ledgerBalances = fileService.balanceCSVparseToPOJO(ledgerBalanceFile);
+            SwiftMessage swiftMessage = fileService.swiftXMLparseToPOJO(swiftFile);
 
-                // Save SWIFT message
-                modelService.saveSwiftMessage(swiftMessage);
+            // Save SWIFT message
+            modelService.saveSwiftMessage(swiftMessage);
 
-                // Start reconciliation process
-                String integrityCheckMessage = reconciliationService.fullIntegrityCheck(ledgerTransactions, swiftMessage);
-                log.info("{}", integrityCheckMessage);
+            // Start reconciliation process
+            String integrityCheckMessage = reconciliationService.fullIntegrityCheck(ledgerTransactions, swiftMessage);
+            log.info("{}", integrityCheckMessage);
 
-                String proofingMessage = reconciliationService.proofing(ledgerBalances, swiftMessage);
-                log.info("{}", proofingMessage);
+            String proofingMessage = reconciliationService.proofing(ledgerBalances, swiftMessage);
+            log.info("{}", proofingMessage);
 
-                return ResponseEntity.status(HttpStatus.OK).body("Reconciliation successful!");
-            } catch (Exception e) {
-                e.printStackTrace();
-                return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(e.getMessage());
-            }
+            List<String> responseMessage = Arrays.asList(integrityCheckMessage, proofingMessage);
+
+            return ResponseEntity.status(HttpStatus.OK).body(responseMessage);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(Arrays.asList(e.getMessage()));
         }
-        message = "Please upload correct file formats (CSV, XML)!";
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(message);
     }
-
 }
