@@ -37,7 +37,6 @@ public class ReconciliationController {
     public ResponseEntity<List<String>> reconcile(@RequestParam("ledgerTransactionFile") MultipartFile ledgerTransactionFile,
                                               @RequestParam("ledgerBalanceFile") MultipartFile ledgerBalanceFile,
                                               @RequestParam("swiftFile") MultipartFile swiftFile) {
-        String message = "";
         try {
             List<LedgerTransaction> ledgerTransactions = fileService.ledgerCSVparseToPOJO(ledgerTransactionFile);
             List<LedgerBalance> ledgerBalances = fileService.balanceCSVparseToPOJO(ledgerBalanceFile);
@@ -48,10 +47,7 @@ public class ReconciliationController {
 
             // Start reconciliation process
             String integrityCheckMessage = reconciliationService.fullIntegrityCheck(ledgerTransactions, swiftMessage);
-            log.info("{}", integrityCheckMessage);
-
             String proofingMessage = reconciliationService.proofing(ledgerBalances, swiftMessage);
-            log.info("{}", proofingMessage);
 
             List<String> responseMessage = Arrays.asList(integrityCheckMessage, proofingMessage);
 
